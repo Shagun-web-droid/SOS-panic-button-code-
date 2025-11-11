@@ -1,0 +1,71 @@
+#include <SoftwareSerial.h>
+#include <TinyGPS++.h>
+
+TinyGPSPlus gps;
+
+// GSM on SoftwareSerial
+SoftwareSerial gsmSerial(D6,D7);  // D7=RX, D8=TX  (gsm TX->D7 , gsm RX->D8)
+
+#define BUTTON D4
+#define BUZZER D8
+
+float def_lat = 28.7007;
+float def_lon = 77.4414;
+
+void setup()
+{
+  Serial.begin(9600);      // debug monitor + GPS reading
+  gsmSerial.begin(9600);     // GSM
+  Serial.println("System Start");
+
+  pinMode(BUTTON, INPUT_PULLUP);
+  pinMode(BUZZER, OUTPUT);
+
+  // init GSM
+  gsmSerial.println("AT");
+  delay(500);
+  gsmSerial.println("AT+CMGF=1");
+  delay(500);
+}
+
+void loop()
+{
+  // GPS read from Serial0
+  while(Serial.available())
+  {
+    gps.encode(Serial.read());
+  }
+
+  if(digitalRead(BUTTON)==LOW)
+  {
+    send_sms();
+    delay(1500);
+  }
+}
+
+void send_sms()
+{
+  digitalWrite(BUZZER,HIGH);
+  gsmSerial.println("AT+CMGF=1");
+  delay(300);
+  gsmSerial.println("AT+CMGS=\"\"");
+  delay(300);
+
+  if(gps.location.isValid())
+  {
+    gsmSerial.print("Help Me!! Lat=");
+    gsmSerial.print(gps.location.lat(),6);
+    gsmSerial.print(" Lon=");
+    gsmSerial.print(gps.location.lng(),6);
+  }
+  else
+  {
+    gsmSerial.print("Help Me!! d  Lat=");
+    gsmSerial.print(def_lat,6);
+    gsmSerial.print(" Lon=");
+    gsmSerial.print(def_lon,6);
+  }
+  gsmSerial.write(26);
+  delay(5000);
+  digitalWrite(BUZZER,LOW);
+}
